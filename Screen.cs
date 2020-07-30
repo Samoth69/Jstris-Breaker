@@ -68,24 +68,47 @@ namespace Jstris_breaker
             O_block = 3, //carré de 2 blocks /2 blocks
             S_block = 4, //S vert
             T_block = 5, //T violet
-            Z_block = 6 //Z block
+            Z_block = 6, //Z block
+            none = 7
         }
 
         //contient la grille du jeu.
         private List<List<Case>> Grille = new List<List<Case>>();
 
-        private string[] validColors = {
+        public const string colorIblock = "ff0f9bd7";
+        public const string colorJblock = "ff2141c6";
+        public const string colorLblock = "ffe35b02";
+        public const string colorOblock = "ffe39f02";
+        public const string colorSblock = "ff59b101";
+        public const string colorTblock = "ffaf298a";
+        public const string colorZblock = "ffd70f37";
+
+        //tableau couleurs valide pour repérer la grille de jeu
+        static private string[] validColors = {
             "ff393939", //gris
             "ff6a6a6a", //pièce en gris
             "ff1e1e1e", //overlay de fin de partie
             "ff232323", //pièce en gris en dessous de overlay de partie (car l'overlay est transparent)
-            "ff0f9bd7", //couleur I_block
-            "ff2141c6", //couleur J_block
-            "ffe35b02", //couleur L_block
-            "ffe39f02", //couleur O_block
-            "ff59b101", //couleur S_block
-            "ffaf298a", //couleur T_block
-            "ffd70f37", //couleur Z_block
+            colorIblock, //couleur I_block
+            colorJblock, //couleur J_block
+            colorLblock, //couleur L_block
+            colorOblock, //couleur O_block
+            colorSblock, //couleur S_block
+            colorTblock, //couleur T_block
+            colorZblock, //couleur Z_block
+            "ff999999" //gris en partie
+        };
+
+        //couleur où on concidère que c'est une case "rempli", donc on ne peux pas metre un bout de pièce à cette endroit
+        static public string[] filledColors =
+        {
+            colorIblock, //couleur I_block
+            colorJblock, //couleur J_block
+            colorLblock, //couleur L_block
+            colorOblock, //couleur O_block
+            colorSblock, //couleur S_block
+            colorTblock, //couleur T_block
+            colorZblock, //couleur Z_block
             "ff999999" //gris en partie
         };
 
@@ -137,9 +160,9 @@ namespace Jstris_breaker
         //vérifie si une couleur est présente dans le tableau des couleurs valide (voir plus haut le tableau "validColors")
         //entrée: valeur ARGB avec A - Alpha, R - Red, G - Green, B - Blue. toutes ses lettres sont sur deux caractère sous format exadécimal
         //sortie: vrai si dans tableau, faux sinon.
-        private bool CheckValidColor(string ARGB)
+        static public bool CheckValidColor(string ARGB, string[] tb)
         {
-            foreach (string s in validColors)
+            foreach (string s in tb)
             {
                 if (string.Equals(s, ARGB, StringComparison.OrdinalIgnoreCase))
                 {
@@ -215,7 +238,7 @@ namespace Jstris_breaker
                             Color testC = b.GetPixel(p.x, p.y);
 
                             //si jamais la couleur n'est pas valide
-                            if (!CheckValidColor(testC.Name))
+                            if (!CheckValidColor(testC.Name, validColors))
                             {
                                 //b.SetPixel(p.x, p.y, Color.White);
                                 invalid = true;
@@ -273,17 +296,10 @@ namespace Jstris_breaker
                 foreach (Case p in l)
                 {
                     Color c = b.GetPixel(p.PixelX, p.PixelY);
-                    if (c.Name == "ff999999")
-                    {
-                        Grille[p.PointX][p.PointY].caseStatus = Case.EnumCaseStatus.Filled;
-                    }
-                    else
-                    {
-                        Grille[p.PointX][p.PointY].caseStatus = Case.EnumCaseStatus.Empty;
-                    }
+                    p.CaseColor = c;
                 }
             }
-
+            /*
             foreach (List<Case> l in Grille)
             {
                 foreach (Case p in l)
@@ -299,9 +315,112 @@ namespace Jstris_breaker
                 }
             }
             b.Save("out.png", ImageFormat.Png);
+            */
         }
 
-            //si les dimensions du process sont différente de 0, on concidère la fenêtre comme "valide"
+        private EnumPieceType DeterminerPiece()
+        {
+            for (int i = 0; i < nbCasesX; i++)
+            {
+                switch (Grille[i][0].CaseColor.Name)
+                {
+                    case colorIblock:
+                        return EnumPieceType.I_block;
+                    case colorJblock:
+                        return EnumPieceType.J_block;
+                    case colorLblock:
+                        return EnumPieceType.L_block;
+                    case colorOblock:
+                        return EnumPieceType.O_block;
+                    case colorSblock:
+                        return EnumPieceType.S_block;
+                    case colorTblock:
+                        return EnumPieceType.T_block;
+                    case colorZblock:
+                        return EnumPieceType.Z_block;
+                }
+            }
+            return EnumPieceType.none;
+        }
+
+        private struct StructBestEmplacement
+        {
+            public int x; //emplacement de la partie la plus à gauche de la pièce
+            public int y;
+            public int rotation; //1:première en partant de la gauche, 4: dernière pièce en partant de la gauche. voir Rotation pièce.png
+        }
+
+        private StructBestEmplacement bestEmplacement;
+
+        private int DeterminerMeilleurEmplacement(EnumPieceType pieceAPlacer)
+        {
+            bestEmplacement.x = -1;
+            bestEmplacement.y = -1;
+            bestEmplacement.rotation = -1;
+            switch (pieceAPlacer)
+            {
+                case EnumPieceType.I_block:
+                    //recherche meilleur emplacement avec la barre horizontal (rotation = 1)
+                    for (int i = 0; i < nbCasesX - 3; i++)
+                    {
+                        int y = 0;
+                        while (Grille[i][y].caseStatus == Case.EnumCaseStatus.Empty && Grille[i + 1][y].caseStatus == Case.EnumCaseStatus.Empty && Grille[i + 2][y].caseStatus == Case.EnumCaseStatus.Empty && Grille[i + 3][y].caseStatus == Case.EnumCaseStatus.Empty)
+                        {
+                            y++;
+                        };
+
+                        if (y > bestEmplacement.y)
+                        {
+                            bestEmplacement.x = i;
+                            bestEmplacement.y = y;
+                            bestEmplacement.rotation = 1;
+                        }
+                    }
+
+                    //recherche meilleur emplacement avec la barre verticale (rotation = 2)
+                    for (int i = 0; i < nbCasesX; i++)
+                    {
+                        int y = 0;
+                        while (Grille[i][y].caseStatus == Case.EnumCaseStatus.Empty)
+                        {
+                            y++;
+                        };
+
+                        if (y > bestEmplacement.y)
+                        {
+                            bestEmplacement.x = i;
+                            bestEmplacement.y = y;
+                            bestEmplacement.rotation = 2;
+                        }
+                    }
+                    break;
+                case EnumPieceType.O_block:
+                    for (int i = 0; i < nbCasesX - 1; i++)
+                    {
+                        int y = 0;
+                        while (Grille[i][y].caseStatus == Case.EnumCaseStatus.Empty && Grille[i + 1][y].caseStatus == Case.EnumCaseStatus.Empty)
+                        {
+                            y++;
+                        };
+
+                        if (y > bestEmplacement.y)
+                        {
+                            bestEmplacement.x = i;
+                            bestEmplacement.y = y;
+                        }
+                    }
+                    break;
+                case EnumPieceType.J_block:
+                    for (int r = 1; r <= 4; r++) //rotation: 1 à 4
+                    {
+
+                    }
+                    break;
+            }
+            return bestEmplacement.x;
+        }
+
+        //si les dimensions du process sont différente de 0, on concidère la fenêtre comme "valide"
         public bool IsValid
         {
             get {

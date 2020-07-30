@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,7 +11,7 @@ namespace Jstris_breaker
     {
         private Point pixelPos; //position en pixel de la case par rapport au haut à droite de la fenêtre
         private Point pointPos; //position de la case dans la grille (1, 2, 3...)
-        private EnumCaseStatus caseStatus_ = EnumCaseStatus.Empty;
+        private Color caseColor;
 
         //indique si la case est libre ou non
         public enum EnumCaseStatus : ushort
@@ -57,16 +58,20 @@ namespace Jstris_breaker
             }
         }
 
-        public EnumCaseStatus caseStatus
-        {
-            get
-            {
-                return caseStatus_;
-            }
-            set
-            {
-                this.caseStatus_ = value;
-            }
+        public EnumCaseStatus caseStatus { get; set; } = EnumCaseStatus.Empty;
+        public Color CaseColor { 
+            get => caseColor; 
+            set { 
+                caseColor = value;
+                if (Screen.CheckValidColor(value.Name, Screen.filledColors))
+                {
+                    this.caseStatus = EnumCaseStatus.Filled;
+                }
+                else
+                {
+                    this.caseStatus = EnumCaseStatus.Empty;
+                }
+            } 
         }
     }
 }
