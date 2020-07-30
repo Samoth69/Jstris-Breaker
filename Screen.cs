@@ -56,16 +56,15 @@ namespace Jstris_breaker
 
             if (rect.bottom != 0 && rect.left != 0 && rect.right != 0 && rect.top != 0)
             {
-                this.isValid = true;
                 this.width = rect.right - rect.left;
                 this.height = rect.bottom - rect.top;
-                findGrid();
+                this.isValid = findGrid();
             }   
             else
             {
                 this.isValid = false;
-                this.width = -1;
-                this.height = -1;
+                this.width = 0;
+                this.height = 0;
             }
         }
 
@@ -79,13 +78,30 @@ namespace Jstris_breaker
             return bmp;
         }
 
-        private void findGrid()
+        //cherche la grille sur la fenêtre
+        //renvoie vrai si une grille valide est trouvé
+        //renvoie faux sinon.
+        private bool findGrid()
         {
             Bitmap b = takeFullProcessScreenShot();
-            for (int x = 0; x < b.Width; x++)
+            bool found = false; //deviens vrai si une grille valide est trouvé
+
+            //on utilise un hashset pour des raisons de performance (on dois vérifier l'existance d'objet dans une liste qui ne fait que grandir)
+            HashSet<Point> ptBlacklist = new HashSet<Point>(); //contient la liste des points déjà tester et invalide
+
+            for (int x = 0; x < b.Width && !found; x++)
             {
-                for (int y = 0; y < b.Height; y++)
+                for (int y = 0; y < b.Height && !found; y++)
                 {
+                    if (ptBlacklist.Contains(new Point(x, y)))
+                    {
+                        //continue;
+                    } 
+                    else
+                    {
+                        ptBlacklist.Add(new Point(x, y));
+                    }
+
                     Color ca = b.GetPixel(x, y);
                     //on recherche la couleur du cadre du tetris (ici, un gris avec pour valeur RGB 57,57,57)
                     if (ca.R == 57 && ca.G == 57 && ca.B == 57)
@@ -98,44 +114,61 @@ namespace Jstris_breaker
 
                         List<Point> pts = new List<Point>();
 
-                        for (int tx = x; tx < x + 241; tx++)
+                        bool invalid = false; //deviens vrai si le point n'est pas valide.
+                        const int tailleX = 239;
+                        const int tailleY = 477;
+
+                        if (x + tailleX >= b.Width || y + tailleY >= b.Height)
                         {
-                            Color testC = b.GetPixel(tx, y);
-                            if (testC.Name == "ff575757" || testC.Name == "ff6a6a6a" || testC.Name == "ff1e1e1e" || testC.Name == "ff232323")
+                            continue;
+                        }
+
+                        for (int tx = x; tx < x + tailleX; tx++)
+                        {
+                            pts.Add(new Point(tx, y)); //ligne haut
+                            pts.Add(new Point(tx, y + tailleY)); //ligne bas
+                        }
+
+                        for (int ty = y; ty < y + tailleY; ty++)
+                        {
+                            pts.Add(new Point(x, ty)); //ligne gauche
+                            pts.Add(new Point(x + tailleX, ty)); //ligne droite
+                        }
+
+                        //on vérifie pour chaque point de la liste si la couleur est valide
+                        foreach (Point p in pts)
+                        {
+                            Color testC = b.GetPixel(p.x, p.y);
+
+                            //si jamais la couleur n'est pas valide
+                            if (!(testC.Name == "ff393939" || testC.Name == "ff6a6a6a" || testC.Name == "ff1e1e1e" || testC.Name == "ff232323"))
                             {
-                                pts.Add(new Point(tx, y));
+                                invalid = true;
+                                break;
                             }
                         }
 
-                        /*
-                        Color[] ct = new Color[4];
-                        ct[0] = ca;
-                        ct[1] = b.GetPixel(x + 241, y);
-                        ct[2] = b.GetPixel(x + 241, y + 479);
-                        ct[3] = b.GetPixel(x, y + 479);
-
-                        int validPointCounter = 0;
-
-                        //on vérifie si la couleur aux points déterminer au dessus est valide
-                        for (int i = 0; i < 3; i++)
+                        //si la liste ci-dessus n'est pas valide, on ajoute tous les points à la blacklist pour éviter de vérifier deux fois le même pixel
+                        //sinon, on quitte la boucle.
+                        if (invalid)
                         {
-                            //les couleurs valides sont un gris RGB(57,57,57) ou RGB(106,106,106)
-                            if ((ct[i].R == 57 && ct[i].G == 57 && ct[i].B == 57) || (ct[i].R == 106 && ct[i].G == 106 && ct[i].B == 106))
-                            {
-                                validPointCounter++;
-                            }
+                            ptBlacklist.UnionWith(pts);
                         }
-
-                        //si les 4 points sont confirmés, on valide la grille
-                        if (validPointCounter >= 4)
+                        else
                         {
+                            found = true;
                             gridPos.x = x;
                             gridPos.y = y;
+                            //foreach (Point p in pts)
+                            //{
+                            //    b.SetPixel(p.x, p.y, Color.Red);
+                            //}
                         }
-                        */
                     }
                 }
             }
+            //b.Save("test.png", ImageFormat.Png); 
+            return found;
         }
 
         //si les dimensions du process sont différente de 0, on concidère la fenêtre comme "valide"

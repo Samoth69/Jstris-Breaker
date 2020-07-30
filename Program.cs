@@ -27,7 +27,7 @@ namespace Jstris_breaker
             //Détection et optention du PID de la fenêtre
             //*******************************************
 
-            Process[] prl = Process.GetProcessesByName("firefox");
+            Process[] prl = Process.GetProcessesByName("PaintDotNet");
             Console.WriteLine("searching valid firefox process...");
             foreach (Process p in prl)
             {
