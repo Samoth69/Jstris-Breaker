@@ -1,12 +1,11 @@
-﻿using System;
+﻿using Jstris_breaker.Formes;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using static Jstris_breaker.Forme;
 
 namespace Jstris_breaker
 {
@@ -55,22 +54,6 @@ namespace Jstris_breaker
         //nombre de cases dans le tetris
         const int nbCasesX = 10;
         const int nbCasesY = 20;
-
-        //contient les coordonnées de tous les points du plateau
-        //private List<List<Point>> coordsGrille = new List<List<Point>>();
-
-        //structure qui indique la pièce à laquel on à affaire
-        private enum EnumPieceType : ushort
-        {
-            I_block = 0, //ligne bleu clair de 4 blocks
-            J_block = 1, //J blue foncé
-            L_block = 2, //L orange
-            O_block = 3, //carré de 2 blocks /2 blocks
-            S_block = 4, //S vert
-            T_block = 5, //T violet
-            Z_block = 6, //Z block
-            none = 7
-        }
 
         //contient la grille du jeu.
         private List<List<Case>> Grille = new List<List<Case>>();
@@ -347,7 +330,7 @@ namespace Jstris_breaker
         {
             public int x; //emplacement de la partie la plus à gauche de la pièce
             public int y;
-            public int rotation; //1:première en partant de la gauche, 4: dernière pièce en partant de la gauche. voir Rotation pièce.png
+            public int rotation; //0: N/A, 1:première en partant de la gauche, 4: dernière pièce en partant de la gauche. voir Rotation pièce.png
         }
 
         private StructBestEmplacement bestEmplacement;
@@ -407,6 +390,7 @@ namespace Jstris_breaker
                         {
                             bestEmplacement.x = i;
                             bestEmplacement.y = y;
+                            bestEmplacement.rotation = 0;
                         }
                     }
                     break;
