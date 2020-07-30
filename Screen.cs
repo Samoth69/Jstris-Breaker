@@ -45,7 +45,49 @@ namespace Jstris_breaker
         private RECT rect = new RECT();
 
         //contient l'emplacement du point en haut à gauche de la grille
-        private Point gridPos;
+        private Point gridPos = new Point();
+
+        //taille en pixel du tetris
+        //const int tailleX = 239;
+        //const int tailleY = 477;
+        Size tailleGrille = new Size(239, 478);
+
+        //nombre de cases dans le tetris
+        const int nbCasesX = 10;
+        const int nbCasesY = 20;
+
+        //contient les coordonnées de tous les points du plateau
+        //private List<List<Point>> coordsGrille = new List<List<Point>>();
+
+        //structure qui indique la pièce à laquel on à affaire
+        private enum EnumPieceType : ushort
+        {
+            I_block = 0, //ligne bleu clair de 4 blocks
+            J_block = 1, //J blue foncé
+            L_block = 2, //L orange
+            O_block = 3, //carré de 2 blocks /2 blocks
+            S_block = 4, //S vert
+            T_block = 5, //T violet
+            Z_block = 6 //Z block
+        }
+
+        //contient la grille du jeu.
+        private List<List<Case>> Grille = new List<List<Case>>();
+
+        private string[] validColors = {
+            "ff393939", //gris
+            "ff6a6a6a", //pièce en gris
+            "ff1e1e1e", //overlay de fin de partie
+            "ff232323", //pièce en gris en dessous de overlay de partie (car l'overlay est transparent)
+            "ff0f9bd7", //couleur I_block
+            "ff2141c6", //couleur J_block
+            "ffe35b02", //couleur L_block
+            "ffe39f02", //couleur O_block
+            "ff59b101", //couleur S_block
+            "ffaf298a", //couleur T_block
+            "ffd70f37", //couleur Z_block
+            "ff999999" //gris en partie
+        };
 
         //constructeur
         public Screen(Process p)
@@ -59,6 +101,11 @@ namespace Jstris_breaker
                 this.width = rect.right - rect.left;
                 this.height = rect.bottom - rect.top;
                 this.isValid = findGrid();
+                if (this.isValid)
+                {
+                    GenCoordsGrille();
+                    ReadGrid();
+                }
             }   
             else
             {
@@ -68,7 +115,7 @@ namespace Jstris_breaker
             }
         }
 
-        private Bitmap takeFullProcessScreenShot()
+        private Bitmap TakeFullProcessScreenShot()
         {
             Rectangle r = new Rectangle(0, 0, width, height);
             Bitmap bmp = new Bitmap(r.Width, r.Height, PixelFormat.Format32bppArgb);
@@ -77,13 +124,37 @@ namespace Jstris_breaker
             //bmp.Save("out.png", ImageFormat.Png);
             return bmp;
         }
+        
+        private Bitmap TakeGridScreenShot()
+        {
+            Rectangle r = new Rectangle(0, 0, tailleGrille.Width, tailleGrille.Height);
+            Bitmap bmp = new Bitmap(r.Width, r.Height, PixelFormat.Format32bppArgb);
+            Graphics g = Graphics.FromImage(bmp);
+            g.CopyFromScreen(rect.left + gridPos.x, rect.top + gridPos.y, 0, 0, tailleGrille, CopyPixelOperation.SourceCopy);
+            return bmp;
+        }
+
+        //vérifie si une couleur est présente dans le tableau des couleurs valide (voir plus haut le tableau "validColors")
+        //entrée: valeur ARGB avec A - Alpha, R - Red, G - Green, B - Blue. toutes ses lettres sont sur deux caractère sous format exadécimal
+        //sortie: vrai si dans tableau, faux sinon.
+        private bool CheckValidColor(string ARGB)
+        {
+            foreach (string s in validColors)
+            {
+                if (string.Equals(s, ARGB, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         //cherche la grille sur la fenêtre
         //renvoie vrai si une grille valide est trouvé
         //renvoie faux sinon.
         private bool findGrid()
         {
-            Bitmap b = takeFullProcessScreenShot();
+            Bitmap b = TakeFullProcessScreenShot();
             bool found = false; //deviens vrai si une grille valide est trouvé
 
             //on utilise un hashset pour des raisons de performance (on dois vérifier l'existance d'objet dans une liste qui ne fait que grandir)
@@ -115,24 +186,27 @@ namespace Jstris_breaker
                         List<Point> pts = new List<Point>();
 
                         bool invalid = false; //deviens vrai si le point n'est pas valide.
-                        const int tailleX = 239;
-                        const int tailleY = 477;
+                        
 
-                        if (x + tailleX >= b.Width || y + tailleY >= b.Height)
+                        if (x + tailleGrille.Width >= b.Width || y + tailleGrille.Height >= b.Height)
                         {
                             continue;
                         }
 
-                        for (int tx = x; tx < x + tailleX; tx++)
+                        for (int tx = x; tx < x + tailleGrille.Width; tx++)
                         {
                             pts.Add(new Point(tx, y)); //ligne haut
-                            pts.Add(new Point(tx, y + tailleY)); //ligne bas
+                            pts.Add(new Point(tx, y + tailleGrille.Height)); //ligne bas
+                            //b.SetPixel(tx, y, Color.DeepPink);
+                            //b.SetPixel(tx, y + tailleGrille.Height, Color.DeepPink);
                         }
 
-                        for (int ty = y; ty < y + tailleY; ty++)
+                        for (int ty = y; ty < y + tailleGrille.Height; ty++)
                         {
                             pts.Add(new Point(x, ty)); //ligne gauche
-                            pts.Add(new Point(x + tailleX, ty)); //ligne droite
+                            pts.Add(new Point(x + tailleGrille.Width, ty)); //ligne droite
+                            //b.SetPixel(x, ty, Color.DeepPink);
+                            //b.SetPixel(x + tailleGrille.Width, ty, Color.DeepPink);
                         }
 
                         //on vérifie pour chaque point de la liste si la couleur est valide
@@ -141,8 +215,9 @@ namespace Jstris_breaker
                             Color testC = b.GetPixel(p.x, p.y);
 
                             //si jamais la couleur n'est pas valide
-                            if (!(testC.Name == "ff393939" || testC.Name == "ff6a6a6a" || testC.Name == "ff1e1e1e" || testC.Name == "ff232323"))
+                            if (!CheckValidColor(testC.Name))
                             {
+                                //b.SetPixel(p.x, p.y, Color.White);
                                 invalid = true;
                                 break;
                             }
@@ -171,7 +246,62 @@ namespace Jstris_breaker
             return found;
         }
 
-        //si les dimensions du process sont différente de 0, on concidère la fenêtre comme "valide"
+        private void GenCoordsGrille()
+        {
+            int px = 0;
+            int py = 0;
+
+            for (int x = tailleGrille.Width / nbCasesX / 2; x < tailleGrille.Width; x+= tailleGrille.Width / nbCasesX + 1)
+            {
+                List<Case> l = new List<Case>();
+                for (int y = tailleGrille.Height / nbCasesY / 2; y < tailleGrille.Height; y+= tailleGrille.Height / nbCasesY + 1)
+                {
+                    l.Add(new Case(new Point(x, y), new Point(px, py)));
+                    py++;
+                }
+                Grille.Add(l);
+                py = 0;
+                px++;
+            }
+        }
+
+        private void ReadGrid()
+        {
+            Bitmap b = TakeGridScreenShot();
+            foreach (List<Case> l in Grille)
+            {
+                foreach (Case p in l)
+                {
+                    Color c = b.GetPixel(p.PixelX, p.PixelY);
+                    if (c.Name == "ff999999")
+                    {
+                        Grille[p.PointX][p.PointY].caseStatus = Case.EnumCaseStatus.Filled;
+                    }
+                    else
+                    {
+                        Grille[p.PointX][p.PointY].caseStatus = Case.EnumCaseStatus.Empty;
+                    }
+                }
+            }
+
+            foreach (List<Case> l in Grille)
+            {
+                foreach (Case p in l)
+                {
+                    if (p.caseStatus == Case.EnumCaseStatus.Filled)
+                    {
+                        b.SetPixel(p.PixelX, p.PixelY, Color.Red);
+                    }
+                    else
+                    {
+                        b.SetPixel(p.PixelX, p.PixelY, Color.Green);
+                    }
+                }
+            }
+            b.Save("out.png", ImageFormat.Png);
+        }
+
+            //si les dimensions du process sont différente de 0, on concidère la fenêtre comme "valide"
         public bool IsValid
         {
             get {
